@@ -1,36 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/theme/app_theme.dart';
-import 'core/routes/app_pages.dart';
-import 'core/routes/app_routes.dart';
+import 'package:provider/provider.dart';
+import 'config/theme.dart';
+import 'config/routes.dart';
+
+// Providers imports
+import 'providers/auth_provider.dart';
+import 'providers/user_provider.dart';
+import 'providers/property_provider.dart';
+import 'providers/search_provider.dart';
+import 'providers/chat_provider.dart';
+import 'providers/admin_provider.dart';
 
 void main() {
-  runApp(
-    const ProviderScope(
-      child: DwellWiseApp(),
-    ),
-  );
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const DwellWiseApp());
 }
 
+/// Root widget initializing state management and route handlers.
 class DwellWiseApp extends StatelessWidget {
   const DwellWiseApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DwellWise',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      // Configure navigation routes for clean separation
-      initialRoute: AppRoutes.onboarding,
-      routes: {
-        AppRoutes.onboarding: (context) => const OnboardingPage(),
-        AppRoutes.login: (context) => const LoginPage(),
-        AppRoutes.dashboard: (context) => const DashboardPage(),
-        AppRoutes.searchFilters: (context) => const SearchFilterPage(),
-        AppRoutes.propertyDetails: (context) => const PropertyDetailsPage(),
-        AppRoutes.directChat: (context) => const DirectChatPage(),
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => PropertyProvider()),
+        ChangeNotifierProvider(create: (_) => SearchProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => AdminProvider()),
+      ],
+      child: MaterialApp.router(
+        title: 'DwellWise',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.light,
+        routerConfig: AppRoutes.router,
+      ),
     );
   }
 }
