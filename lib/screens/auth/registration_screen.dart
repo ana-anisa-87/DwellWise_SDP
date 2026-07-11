@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 
-/// Screen representing user registration page (Step 1 of 2).
+/// Screen representing user registration page.
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
 
@@ -13,19 +13,26 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
+  
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _addressController = TextEditingController();
+
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Please enter your full name';
+      return 'Full Name is required';
     }
     if (value.trim().length < 3) {
       return 'Name must be at least 3 characters';
@@ -35,7 +42,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   String? _validatePhone(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Please enter your phone number';
+      return 'Phone Number is required';
     }
     // Matches 10 digits after +880 (e.g. 1712345678)
     final phoneRegex = RegExp(r'^1[3-9]\d{8}$');
@@ -45,33 +52,98 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return null;
   }
 
-  void _handleNextStep() async {
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    if (value.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return null;
+  }
+
+  String? _validateAddress(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Current Address is required';
+    }
+    return null;
+  }
+
+  void _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = context.read<AuthProvider>();
-      
-      // Simulate checking phone registration or navigating to next step (OTP verification screen / Step 2)
-      authProvider.sendOtp(
+
+      // Call auth register stub
+      final success = await authProvider.register(
         '+880${_phoneController.text.trim()}',
-        (verificationId, forceResendingToken) {
-          // Navigates to OTP screen
-          context.push('/otp');
-        },
+        _passwordController.text,
       );
-      
-      // For boilerplate testing and evaluation, directly navigate to OTP screen
-      context.push('/otp');
+
+      if (success && mounted) {
+        // Success feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful! Please log in.'),
+            backgroundColor: Color(0xff10B981), // Success Emerald Green
+          ),
+        );
+        // Redirect to Login Screen
+        context.go('/login');
+      } else if (mounted) {
+        final errorMsg = authProvider.errorMessage ?? 'Registration failed.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: const Color(0xffDC2626), // Error Red
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill out the fields correctly'),
+          content: Text('Please correct the validation errors in the form'),
           backgroundColor: Color(0xffDC2626), // Error Red
         ),
       );
     }
   }
 
+  Widget _buildInputLabel(String labelText, bool isRequired) {
+    if (!isRequired) {
+      return Text(
+        labelText,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Color(0xff6B7280),
+        ),
+      );
+    }
+    return RichText(
+      text: TextSpan(
+        text: labelText.replaceAll(' *', ''),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Color(0xff6B7280),
+        ),
+        children: const [
+          TextSpan(
+            text: ' *',
+            style: TextStyle(
+              color: Color(0xffDC2626), // Error Red
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xffF3F4F6), // Background Light Gray
       body: SafeArea(
@@ -85,7 +157,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               children: [
                 const SizedBox(height: 40), // Top Spacing
 
-                // Top Badge and Navigation Header Row
+                // Top Badge and Header Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -112,7 +184,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // DwellWise Centered Logo
+                // Centered DwellWise Logo
                 Center(
                   child: Container(
                     width: 80,
@@ -152,14 +224,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 const SizedBox(height: 32),
 
                 // Full Name Input
-                const Text(
-                  'FULL NAME',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xff6B7280),
-                  ),
-                ),
+                _buildInputLabel('FULL NAME *', true),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _nameController,
@@ -194,17 +259,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   validator: _validateName,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 20), // Form vertical gap
 
-                // Phone Number Input with Country Code Dropdown Prefix
-                const Text(
-                  'PHONE NUMBER',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xff6B7280),
-                  ),
-                ),
+                // Phone Number Input
+                _buildInputLabel('PHONE NUMBER *', true),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _phoneController,
@@ -230,7 +288,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        const Icon(Icons.arrow_drop_down, color: Color(0xff1F2937)),
                         const SizedBox(width: 8),
                         Container(
                           width: 1,
@@ -263,16 +320,115 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   validator: _validatePhone,
                 ),
+                const SizedBox(height: 20), // Form vertical gap
+
+                // Password Input
+                _buildInputLabel('PASSWORD *', true),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  style: const TextStyle(color: Color(0xff1F2937)),
+                  decoration: InputDecoration(
+                    hintText: '••••••••',
+                    hintStyle: const TextStyle(color: Color(0xff9CA3AF)),
+                    fillColor: Colors.white,
+                    filled: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    prefixIcon: const Icon(Icons.lock_outline, color: Color(0xff6B7280)),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        color: const Color(0xff6B7280),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffD1D5DB)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffD1D5DB)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xff1E40AF), width: 1.5),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffDC2626)),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffDC2626), width: 1.5),
+                    ),
+                  ),
+                  validator: _validatePassword,
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Min 6 characters',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xff9CA3AF), // Hint Gray
+                  ),
+                ),
+                const SizedBox(height: 20), // Form vertical gap
+
+                // Current Address Input
+                _buildInputLabel('CURRENT ADDRESS *', true),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _addressController,
+                  maxLines: 3,
+                  keyboardType: TextInputType.multiline,
+                  style: const TextStyle(color: Color(0xff1F2937)),
+                  decoration: InputDecoration(
+                    hintText: 'Building address, street, area',
+                    hintStyle: const TextStyle(color: Color(0xff9CA3AF)),
+                    fillColor: Colors.white,
+                    filled: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    prefixIcon: const Icon(Icons.location_on_outlined, color: Color(0xff6B7280)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffD1D5DB)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffD1D5DB)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xff1E40AF), width: 1.5),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffDC2626)),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xffDC2626), width: 1.5),
+                    ),
+                  ),
+                  validator: _validateAddress,
+                ),
                 const SizedBox(height: 32),
 
-                // Next Step Button
+                // Register Button
                 _CTAButton(
-                  text: 'Next Step →',
-                  onPressed: _handleNextStep,
+                  text: 'Register',
+                  isLoading: isLoading,
+                  onPressed: _handleRegister,
                 ),
                 const SizedBox(height: 24),
 
-                // Bottom Login section
+                // Bottom Login prompt
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -295,7 +451,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Security Section info tiles
+                // Security Section
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: const [
@@ -382,11 +538,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 class _CTAButton extends StatefulWidget {
   final String text;
   final VoidCallback onPressed;
+  final bool isLoading;
 
   const _CTAButton({
     Key? key,
     required this.text,
     required this.onPressed,
+    this.isLoading = false,
   }) : super(key: key);
 
   @override
@@ -404,10 +562,10 @@ class _CTAButtonState extends State<_CTAButton> {
     }
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onPressed,
+      onTapDown: widget.isLoading ? null : (_) => setState(() => _isPressed = true),
+      onTapUp: widget.isLoading ? null : (_) => setState(() => _isPressed = false),
+      onTapCancel: widget.isLoading ? null : () => setState(() => _isPressed = false),
+      onTap: widget.isLoading ? null : widget.onPressed,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
         height: 56,
@@ -416,14 +574,23 @@ class _CTAButtonState extends State<_CTAButton> {
           borderRadius: BorderRadius.circular(8),
         ),
         alignment: Alignment.center,
-        child: Text(
-          widget.text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        child: widget.isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                widget.text,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
       ),
     );
   }
